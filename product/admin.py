@@ -20,6 +20,6 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ("product", "author", "rating", "created_at")
-    list_filter = ("rating", "created_at")
+    list_display = ("product", "author", "stars", "created_at")
+    list_filter = ("stars", "created_at")
     search_fields = ("author", "comment", "product__name")

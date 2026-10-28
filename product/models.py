@@ -48,6 +48,10 @@ class Review(models.Model):
         related_name="reviews",
         verbose_name="Товар",
     )
+    stars = models.IntegerField(
+        "Количество звёзд",
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
     author = models.CharField("Автор", max_length=120)
     rating = models.PositiveSmallIntegerField(
         "Оценка",
