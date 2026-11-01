@@ -119,3 +119,154 @@ class ProductApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], self.category.pk)
         self.assertEqual(response.data["products_count"], 2)
+
+    def test_category_crud_endpoints(self):
+        response = self.client.post(
+            "/api/v1/categories/",
+            {
+                "name": "Новая категория",
+                "slug": "new-category",
+                "description": "Описание категории",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        category_id = response.data["id"]
+        self.assertTrue(
+            any(
+                item["id"] == category_id
+                for item in self.client.get("/api/v1/categories/").data
+            )
+        )
+        detail_url = f"/api/v1/categories/{category_id}/"
+        self.assertEqual(self.client.get(detail_url).status_code, 200)
+
+        response = self.client.put(
+            detail_url,
+            {
+                "name": "Обновлённая категория",
+                "slug": "updated-category",
+                "description": "Новое описание",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["name"], "Обновлённая категория")
+
+        response = self.client.patch(
+            detail_url,
+            {"description": "Частично обновлённое описание"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data["description"], "Частично обновлённое описание"
+        )
+
+        self.assertEqual(self.client.delete(detail_url).status_code, 204)
+        self.assertEqual(self.client.get(detail_url).status_code, 404)
+
+    def test_product_crud_endpoints(self):
+        response = self.client.post(
+            "/api/v1/products/",
+            {
+                "category": self.category.pk,
+                "name": "Новый товар",
+                "slug": "new-product",
+                "description": "Описание товара",
+                "price": "125.50",
+                "stock": 7,
+                "is_available": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        product_id = response.data["id"]
+        self.assertTrue(
+            any(
+                item["id"] == product_id
+                for item in self.client.get("/api/v1/products/").data
+            )
+        )
+        detail_url = f"/api/v1/products/{product_id}/"
+        self.assertEqual(self.client.get(detail_url).status_code, 200)
+
+        response = self.client.put(
+            detail_url,
+            {
+                "category": self.category.pk,
+                "name": "Обновлённый товар",
+                "slug": "updated-product",
+                "description": "Новое описание",
+                "price": "150.00",
+                "stock": 9,
+                "is_available": False,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["name"], "Обновлённый товар")
+        self.assertEqual(response.data["price"], "150.00")
+
+        response = self.client.patch(
+            detail_url,
+            {"stock": 12},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["stock"], 12)
+
+        self.assertEqual(self.client.delete(detail_url).status_code, 204)
+        self.assertEqual(self.client.get(detail_url).status_code, 404)
+
+    def test_review_crud_endpoints(self):
+        response = self.client.post(
+            "/api/v1/reviews/",
+            {
+                "product": self.product.pk,
+                "author": "Новый автор",
+                "rating": 4,
+                "stars": 4,
+                "comment": "Новый отзыв",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        review_id = response.data["id"]
+        self.assertTrue(
+            any(
+                item["id"] == review_id
+                for item in self.client.get("/api/v1/reviews/").data
+            )
+        )
+        detail_url = f"/api/v1/reviews/{review_id}/"
+        self.assertEqual(self.client.get(detail_url).status_code, 200)
+
+        response = self.client.put(
+            detail_url,
+            {
+                "product": self.product.pk,
+                "author": "Обновлённый автор",
+                "rating": 5,
+                "stars": 5,
+                "comment": "Обновлённый отзыв",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["author"], "Обновлённый автор")
+        self.assertEqual(response.data["stars"], 5)
+
+        response = self.client.patch(
+            detail_url,
+            {"comment": "Частично обновлённый отзыв"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["comment"], "Частично обновлённый отзыв")
+
+        self.assertEqual(self.client.delete(detail_url).status_code, 204)
+        self.assertEqual(self.client.get(detail_url).status_code, 404)
