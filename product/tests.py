@@ -270,3 +270,99 @@ class ProductApiTests(TestCase):
 
         self.assertEqual(self.client.delete(detail_url).status_code, 204)
         self.assertEqual(self.client.get(detail_url).status_code, 404)
+
+    def test_category_api_rejects_invalid_fields_and_duplicate_slugs(self):
+        invalid_payloads = [
+            {"name": "", "slug": "new-category"},
+            {"name": "Категория", "slug": "not a valid slug"},
+            {"name": "Категория", "slug": self.category.slug},
+            {"name": ["не", "строка"], "slug": "new-category"},
+        ]
+
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload):
+                response = self.client.post(
+                    "/api/v1/categories/", payload, format="json"
+                )
+                self.assertEqual(response.status_code, 400)
+
+        self.assertEqual(Category.objects.count(), 2)
+
+    def test_product_api_validates_field_types_values_and_category(self):
+        valid_payload = {
+            "category": self.category.pk,
+            "name": "Проверяемый товар",
+            "slug": "validated-product",
+            "description": "Описание",
+            "price": "10.00",
+            "stock": 3,
+            "is_available": True,
+        }
+        invalid_fields = [
+            {"category": 999999},
+            {"category": "не-id"},
+            {"price": "0"},
+            {"price": "-1.00"},
+            {"price": "не цена"},
+            {"stock": "много"},
+            {"stock": -1},
+            {"is_available": "неизвестно"},
+        ]
+
+        for invalid_field in invalid_fields:
+            with self.subTest(invalid_field=invalid_field):
+                payload = {**valid_payload, **invalid_field}
+                response = self.client.post(
+                    "/api/v1/products/", payload, format="json"
+                )
+                self.assertEqual(response.status_code, 400)
+
+        self.assertEqual(Product.objects.count(), 2)
+
+    def test_product_patch_rejects_invalid_values_without_changing_product(self):
+        url = f"/api/v1/products/{self.product.pk}/"
+        invalid_payloads = [
+            {"price": "0"},
+            {"stock": "не число"},
+            {"category": 999999},
+        ]
+
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload):
+                response = self.client.patch(url, payload, format="json")
+                self.assertEqual(response.status_code, 400)
+
+        self.product.refresh_from_db()
+        self.assertEqual(str(self.product.price), "100.00")
+        self.assertEqual(self.product.stock, 0)
+        self.assertEqual(self.product.category, self.category)
+
+    def test_review_api_validates_integer_ratings_and_product_relation(self):
+        valid_payload = {
+            "product": self.product.pk,
+            "author": "Проверяющий",
+            "rating": 4,
+            "stars": 4,
+            "comment": "Отзыв",
+        }
+        invalid_fields = [
+            {"product": 999999},
+            {"product": "не-id"},
+            {"stars": 0},
+            {"stars": 6},
+            {"stars": "не число"},
+            {"rating": 0},
+            {"rating": 6},
+            {"rating": "не число"},
+            {"author": "   "},
+        ]
+
+        for invalid_field in invalid_fields:
+            with self.subTest(invalid_field=invalid_field):
+                payload = {**valid_payload, **invalid_field}
+                response = self.client.post(
+                    "/api/v1/reviews/", payload, format="json"
+                )
+                self.assertEqual(response.status_code, 400)
+
+        self.assertEqual(Review.objects.count(), 2)

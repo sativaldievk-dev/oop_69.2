@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from .models import Category, Product, Review
@@ -15,6 +17,9 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
+        extra_kwargs = {
+            "price": {"min_value": Decimal("0.01")},
+        }
 
 
 class ReviewSerializer(serializers.ModelSerializer):
