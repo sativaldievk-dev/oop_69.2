@@ -1,5 +1,34 @@
+import secrets
+
+from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+
+
+def generate_confirmation_code():
+    return str(secrets.randbelow(900_000) + 100_000)
+
+
+class RegistrationCode(models.Model):
+    user = models.OneToOneField(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name="registration_code",
+        verbose_name="Пользователь",
+    )
+    code = models.CharField(
+        "Код подтверждения",
+        max_length=6,
+        default=generate_confirmation_code,
+    )
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "код подтверждения регистрации"
+        verbose_name_plural = "коды подтверждения регистрации"
+
+    def __str__(self):
+        return f"Код подтверждения пользователя {self.user}"
 
 
 class Category(models.Model):

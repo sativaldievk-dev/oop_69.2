@@ -1,13 +1,22 @@
 from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import Category, Product, Review
+from .models import Category, Product, RegistrationCode, Review
+
+
+User = get_user_model()
 
 
 class ProductApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.user = User.objects.create_user(
+            username="product-tester",
+            password="SecureTestPass!2026",
+        )
+        self.client.force_authenticate(user=self.user)
         self.category = Category.objects.create(
             name="Категория",
             slug="test-category",
@@ -366,3 +375,96 @@ class ProductApiTests(TestCase):
                 self.assertEqual(response.status_code, 400)
 
         self.assertEqual(Review.objects.count(), 2)
+
+
+class UserAuthApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.registration_payload = {
+            "username": "new-user",
+            "email": "new-user@example.com",
+            "password": "SecurePass!2026",
+        }
+
+    def register_user(self):
+        return self.client.post(
+            "/api/v1/users/register/",
+            self.registration_payload,
+            format="json",
+        )
+
+    def test_registration_creates_inactive_user_and_six_digit_code(self):
+        response = self.register_user()
+
+        self.assertEqual(response.status_code, 201)
+        user = User.objects.get(username="new-user")
+        self.assertFalse(user.is_active)
+        registration_code = RegistrationCode.objects.get(user=user)
+        self.assertRegex(registration_code.code, r"^\d{6}$")
+        self.assertEqual(response.data["email"], user.email)
+
+    def test_confirmation_activates_user_and_rejects_invalid_code(self):
+        self.register_user()
+        user = User.objects.get(username="new-user")
+        code = user.registration_code.code
+
+        invalid_response = self.client.post(
+            "/api/v1/users/confirm/",
+            {
+                "email": user.email,
+                "code": "000000" if code != "000000" else "000001",
+            },
+            format="json",
+        )
+        self.assertEqual(invalid_response.status_code, 400)
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+
+        response = self.client.post(
+            "/api/v1/users/confirm/",
+            {"email": user.email, "code": code},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+        self.assertFalse(RegistrationCode.objects.filter(user=user).exists())
+        repeated_response = self.client.post(
+            "/api/v1/users/confirm/",
+            {"email": user.email, "code": code},
+            format="json",
+        )
+        self.assertEqual(repeated_response.status_code, 400)
+
+    def test_jwt_login_is_blocked_until_user_is_confirmed(self):
+        self.register_user()
+        user = User.objects.get(username="new-user")
+        login_payload = {
+            "username": self.registration_payload["username"],
+            "password": self.registration_payload["password"],
+        }
+
+        response = self.client.post("/api/v1/token/", login_payload, format="json")
+        self.assertEqual(response.status_code, 401)
+
+        self.client.post(
+            "/api/v1/users/confirm/",
+            {"email": user.email, "code": user.registration_code.code},
+            format="json",
+        )
+        response = self.client.post("/api/v1/token/", login_payload, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {response.data['access']}"
+        )
+        protected_response = self.client.get("/api/v1/categories/")
+        self.assertEqual(protected_response.status_code, 200)
+
+    def test_shop_api_requires_jwt_authentication(self):
+        response = self.client.get("/api/v1/categories/")
+
+        self.assertEqual(response.status_code, 401)
