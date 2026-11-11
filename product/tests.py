@@ -464,6 +464,27 @@ class UserAuthApiTests(TestCase):
         protected_response = self.client.get("/api/v1/categories/")
         self.assertEqual(protected_response.status_code, 200)
 
+    def test_jwt_refresh_returns_a_new_access_token(self):
+        user = User.objects.create_user(
+            username="active-user",
+            password="SecureTestPass!2026",
+        )
+        token_response = self.client.post(
+            "/api/v1/token/",
+            {"username": user.username, "password": "SecureTestPass!2026"},
+            format="json",
+        )
+
+        self.assertEqual(token_response.status_code, 200)
+        refresh_response = self.client.post(
+            "/api/v1/token/refresh/",
+            {"refresh": token_response.data["refresh"]},
+            format="json",
+        )
+
+        self.assertEqual(refresh_response.status_code, 200)
+        self.assertIn("access", refresh_response.data)
+
     def test_shop_api_requires_jwt_authentication(self):
         response = self.client.get("/api/v1/categories/")
 
