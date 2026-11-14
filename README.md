@@ -8,9 +8,14 @@
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+cp .env.example .env
+# Заполните .env параметрами локального PostgreSQL и SECRET_KEY.
 python manage.py migrate
 python manage.py runserver
 ```
+
+Для локальной разработки создайте базу PostgreSQL `shop_api` и пользователя,
+указанные в `.env`. Файл `.env` содержит локальные секреты и не попадает в Git.
 
 Откройте `http://127.0.0.1:8000/api/v1/`. Админка доступна по адресу `http://127.0.0.1:8000/admin/`; для входа создайте администратора командой `python manage.py createsuperuser`.
 

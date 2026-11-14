@@ -1,10 +1,13 @@
 """Settings for the shop_api project."""
+import os
 from pathlib import Path
 
+import dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+dotenv.read_dotenv(str(BASE_DIR / ".env"))
 
-SECRET_KEY = "django-insecure-shop-api-development-key-change-before-deployment"
+SECRET_KEY = os.environ["SECRET_KEY"]
 DEBUG = True
 ALLOWED_HOSTS = []
 
@@ -51,8 +54,12 @@ ASGI_APPLICATION = "shop_api.asgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ["DB_NAME"],
+        "USER": os.environ["DB_USER"],
+        "PASSWORD": os.environ["DB_PASSWORD"],
+        "HOST": os.environ["DB_HOST"],
+        "PORT": os.environ["DB_PORT"],
     }
 }
 
