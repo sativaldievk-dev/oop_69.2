@@ -1,0 +1,35 @@
+name: shop-api
+
+services:
+  web:
+    build: .
+    command: ["sh", "-c", "python manage.py migrate && exec python manage.py runserver 0.0.0.0:8000"]
+    ports:
+      - "8000:8000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-local-docker-key-change-before-deployment}
+      DB_NAME: ${DB_NAME:-shop_api}
+      DB_USER: ${DB_USER:-shop_api}
+      DB_PASSWORD: ${DB_PASSWORD:-shop_api_password}
+      DB_HOST: db
+      DB_PORT: "5432"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-shop_api}
+      POSTGRES_USER: ${DB_USER:-shop_api}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-shop_api_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
